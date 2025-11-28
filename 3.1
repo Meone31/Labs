@@ -1,0 +1,144 @@
+Program Project31;
+
+Uses
+    SysUtils;
+
+Const
+    INPUT_FILE = 1;
+    INPUT_CONSOLE = 0;
+    MAX_STRING_VALUE = 255;
+
+Function SelectInputMethod(): Integer;
+Var
+    InputMethod: Integer;
+    IsCorrect: Boolean;
+Begin
+    Repeat
+        IsCorrect := True;
+        Write('Выберите способ ввода (', INPUT_FILE, ' = File,', INPUT_CONSOLE, '= Console): ');
+        Try
+            Readln(InputMethod);
+        Except
+            Writeln('Ошибка, введите 1 или 0');
+            IsCorrect := False;
+        End;
+
+        If (InputMethod <> INPUT_FILE) And (InputMethod <> INPUT_CONSOLE) Then
+        Begin
+            Writeln('Ошибка: допустимые значения только 0 или 1');
+            IsCorrect := False;
+        End;
+    Until IsCorrect;
+    SelectInputMethod := InputMethod;
+End;
+
+Function FileValidator(): String;
+Var
+    FileName: String;
+    Valid: Boolean;
+Begin
+    Valid := False;
+    While Not Valid Do
+    Begin
+        Write('Введите путь к файлу (.txt): ');
+        Readln(FileName);
+        If FileExists(FileName) And (LowerCase(ExtractFileExt(FileName)) = '.txt') Then
+            Valid := True
+        Else
+            Writeln('Файл не найден или неверный формат. Попробуйте снова.');
+    End;
+    FileValidator := FileName;
+End;
+
+Function ReadFromConsole(): String;
+Var
+    Text: String;
+Begin
+    Write('Введите текст (максимум ', MAX_STRING_VALUE ,'символов): ');
+    Readln(Text);
+    ReadFromConsole := Text;
+End;
+
+Function ReadFromFile(): String;
+Var
+    FileName: String;
+    F: TextFile;
+    Line: String;
+    Content: String;
+Begin
+    FileName := FileValidator();
+    AssignFile(F, FileName);
+    Reset(F);
+
+    Content := '';
+    While Not Eof(F) Do
+    Begin
+        ReadLn(F, Line);
+        Content := Content + Line + sLineBreak;
+    End;
+
+    CloseFile(F);
+
+    If Length(Content) > MAX_STRING_VALUE Then
+    Begin
+        Writeln('Предупреждение: содержимое файла обрезано до 255 символов.');
+        Delete(Content, MAX_STRING_VALUE, Length(Content) - MAX_STRING_VALUE);
+    End;
+
+    ReadFromFile := Content;
+End;
+
+Procedure PrintResult(Const InputText: String);
+Var
+    I: Integer;
+    BalanceCounter: Integer;
+    ContainsBrackets: Boolean;
+    Balanced: Boolean;
+Begin
+    If Length(InputText) = 0 Then
+        Writeln('Поток ввода пуст.')
+    Else
+    Begin
+        BalanceCounter := 0;
+        ContainsBrackets := False;
+        Balanced := True;
+
+        For I := 1 To Length(InputText) Do
+        Begin
+            If InputText[I] = '(' Then
+            Begin
+                Inc(BalanceCounter);
+                ContainsBrackets := True;
+            End
+            Else If InputText[I] = ')' Then
+            Begin
+                Dec(BalanceCounter);
+                ContainsBrackets := True;
+                If BalanceCounter < 0 Then
+                    Balanced := False;
+            End;
+        End;
+
+        If Not ContainsBrackets Then
+            Writeln('Скобок не обнаружено.')
+        Else If (BalanceCounter = 0) And Balanced Then
+            Writeln('Баланс скобок соблюдён.')
+        Else
+            Writeln('Баланс скобок нарушен.');
+    End;
+End;
+
+Var
+    InputMethod: Integer;
+    UserText: String;
+Begin
+    InputMethod := SelectInputMethod();
+
+    If InputMethod = INPUT_CONSOLE Then
+        UserText := ReadFromConsole()
+    Else
+        UserText := ReadFromFile();
+
+    PrintResult(UserText);
+    Readln;
+End.
