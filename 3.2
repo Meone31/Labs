@@ -1,0 +1,251 @@
+Program Project32;
+
+Uses SysUtils;
+
+Const
+    INPUT_FILE = 0;
+    INPUT_CONSOLE = 1;
+    MIN_OF_SET = 1;
+    MAX_OF_SET = 255;
+
+Type
+    TMySet = Set Of MIN_OF_SET..MAX_OF_SET;
+
+Function ReadChoice: Integer;
+Var
+    Value: Integer;
+    IsValid: Boolean;
+Begin
+    Repeat
+        Write('Выберите способ ввода (', INPUT_FILE, ' = File, ', INPUT_CONSOLE,' = Console): ');
+        IsValid := True;
+
+        Try
+            Readln(Value);
+        Except
+            Writeln('Ошибка ввода: требуется целое число.');
+            IsValid := False;
+        End;
+
+        If (Value <> INPUT_FILE) And (Value <> INPUT_CONSOLE) Then
+        Begin
+            Writeln('Ошибка: допустимые значения: ', INPUT_FILE, ' или ', INPUT_CONSOLE, '.');
+            IsValid := False;
+        End;
+
+    Until IsValid;
+    ReadChoice := Value;
+End;
+
+Function FileValidator(): String;
+Var
+    FileName: String;
+    Valid: Boolean;
+Begin
+    Valid := False;
+    While Not Valid Do
+    Begin
+        Write('Введите путь к файлу (.txt): ');
+        Readln(FileName);
+        If FileExists(FileName) And (LowerCase(ExtractFileExt(FileName)) = '.txt') Then
+            Valid := True
+        Else
+            Writeln('Файл не найден или неверный формат. Попробуйте снова.');
+    End;
+    FileValidator := FileName;
+End;
+
+Function ReadCountOfElements: Integer;
+Var
+    Value: Integer;
+    IsValid: Boolean;
+Begin
+    Repeat
+        Write('Введите количество элементов множества (', MIN_OF_SET, ' .. ',
+               MAX_OF_SET, '): ');
+        Try
+            Readln(Value);
+        Except
+            Writeln('Ошибка ввода: требуется целое число.');
+            IsValid := False;
+        End;
+            IsValid := (Value >= MIN_OF_SET) And (Value <= MAX_OF_SET);
+            If Not IsValid Then
+            Writeln('Ошибка: число должно быть в диапазоне ', MIN_OF_SET, ' .. ',
+                     MAX_OF_SET, '.');
+    Until IsValid;
+    ReadCountOfElements := Value;
+End;
+
+Procedure ReadSetFromConsole(Var S: TMySet; N: Integer);
+Var
+    I, Temp: Integer;
+    IsValid: Boolean;
+Begin
+    S := [];
+    Writeln('Введите ', N, ' элементов множества:');
+    For I := 1 To N Do
+    Begin
+        Repeat
+            IsValid := True;
+            Write('Set[', I, '] = ');
+            Try
+                Readln(Temp);
+            Except
+                Writeln('Ошибка ввода: требуется целое число.');
+                IsValid := False;
+            End;
+            If (Temp >= MIN_OF_SET) And (Temp <= MAX_OF_SET) Then
+                Include(S, Temp)
+            Else
+            Begin
+                Writeln('Ошибка: число должно быть в диапазоне ', MIN_OF_SET,
+                        ' .. ', MAX_OF_SET, '.');
+                IsValid := False;
+            End;
+        Until IsValid;
+    End;
+End;
+
+Procedure ReadSetFromFile(Var S: TMySet; Var N: Integer; Var IsValid: Boolean);
+Var
+    FileName: String;
+    F: TextFile;
+    Temp, ReadCount: Integer;
+Begin
+    FileName := FileValidator();
+    AssignFile(F, FileName);
+
+    S := [];
+    IsValid := True;
+
+    Try
+        Reset(F);
+    Except
+        Writeln('Ошибка при открытии файла.');
+        IsValid := False;
+    End;
+
+    If IsValid Then
+    Begin
+
+        If EOF(F) Then
+        Begin
+            Writeln('Ошибка: файл пустой.');
+            IsValid := False;
+        End
+        Else
+        Begin
+            Read(F, N);
+
+            If (N <= 0) Or (N > MAX_OF_SET) Then
+            Begin
+                Writeln('Ошибка: размер множества должен быть в диапазоне', MIN_OF_SET, ' .. ', MAX_OF_SET);
+                IsValid := False;
+            End
+            Else
+            Begin
+                ReadCount := 0;
+
+                While (ReadCount < N) And (Not EOF(F)) Do
+                Begin
+                    Read(F, Temp);
+                    If (Temp >= MIN_OF_SET) And (Temp <= MAX_OF_SET) Then
+                        Include(S, Temp)
+                    Else
+                    Begin
+                        Writeln('Элемент ', Temp, ' вне диапазона ', MIN_OF_SET,
+                                '..', MAX_OF_SET);
+                        IsValid := False;
+                    End;
+                    Inc(ReadCount);
+                End;
+
+                If ReadCount < N Then
+                Begin
+                    Writeln('Ошибка: в файле меньше данных, чем указано в первой строке.');
+                    IsValid := False;
+                End;
+
+                If (IsValid) And (Not EOF(F)) Then
+                    Writeln('Предупреждение: в файле есть лишние данные после ', N,' элементов.');
+            End;
+        End;
+
+        CloseFile(F);
+    End;
+End;
+
+Function SumOfSet(S: TMySet): Integer;
+Var
+    I, Sum: Integer;
+Begin
+    Sum := 0;
+    For I := MIN_OF_SET To MAX_OF_SET Do
+        If I In S Then
+            Sum := Sum + I;
+    SumOfSet := Sum;
+End;
+
+Function AverageOfSet(S: TMySet; N: Integer): Real;
+Begin
+    If N = 0 Then
+        AverageOfSet := 0
+    Else
+        AverageOfSet := SumOfSet(S) / N;
+End;
+
+Procedure WriteResultToConsole(Average: Real);
+Begin
+    Writeln('Среднее арифметическое элементов множества: ', Average:4:2);
+End;
+
+Procedure WriteResultToFile(Average: Real);
+Var
+    FileName: String;
+    F: TextFile;
+Begin
+    Write('Введите имя файла для записи: ');
+    Readln(FileName);
+    Try
+        AssignFile(F, FileName);
+        Rewrite(F);
+        Writeln(F, 'Среднее арифметическое элементов множества: ', Average:4:2);
+        CloseFile(F);
+    Except
+        Writeln('Ошибка при записи в файл.');
+    End;
+End;
+
+Var
+    MySet: TMySet;
+    N, InputMode: Integer;
+    Average: Real;
+    IsValid: Boolean;
+Begin
+    InputMode := ReadChoice;
+
+    If InputMode = INPUT_CONSOLE Then
+    Begin
+        N := ReadCountOfElements;
+        ReadSetFromConsole(MySet, N);
+        IsValid := True;
+    End
+    Else
+        ReadSetFromFile(MySet, N, IsValid);
+
+    If IsValid Then
+    Begin
+        Average := AverageOfSet(MySet, N);
+        InputMode := ReadChoice;
+
+        If InputMode = INPUT_CONSOLE Then
+            WriteResultToConsole(Average)
+        Else
+            WriteResultToFile(Average);
+    End
+    Else
+        Writeln('Вычисление невозможно из-за ошибок во входных данных.');
+
+    Readln;
+End.
