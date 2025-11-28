@@ -1,0 +1,262 @@
+Program Project33;
+
+Uses
+    SysUtils;
+
+Type
+    TArr = Array Of Integer;
+    TIntArr = Array Of Integer;
+
+Const
+    MIN_N: Integer = 2;
+    MAX_N: Integer = 100;
+    MIN_VALUE: Integer = -100;
+    MAX_VALUE: Integer = 100;
+
+    INPUT_FILE = 0;
+    INPUT_CONSOLE = 1;
+
+Function FileValidator: String;
+Var
+    FileName: String;
+    Valid: Boolean;
+Begin
+    Valid := False;
+    While Not Valid Do
+    Begin
+        Write('Введите путь к файлу (.txt): ');
+        ReadLn(FileName);
+        If FileExists(FileName) And (ExtractFileExt(FileName) = '.txt') Then
+            Valid := True
+        Else
+            Writeln('Файл не найден или неверный формат. Попробуйте снова.');
+    End;
+    FileValidator := FileName;
+End;
+
+Function ReadChoice: Integer;
+Var
+    Value: Integer;
+    IsValid: Boolean;
+Begin
+    Repeat
+        Write('Выберите способ (', INPUT_FILE, ' = Файл, ', INPUT_CONSOLE,
+              ' = Консоль): ');
+        IsValid := True;
+        Try
+            Readln(Value);
+        Except
+            Writeln('Ошибка ввода: требуется целое число.');
+            IsValid := False;
+        End;
+        If (Value <> INPUT_FILE) And (Value <> INPUT_CONSOLE) Then
+        Begin
+            Writeln('Ошибка: допустимые значения: ', INPUT_FILE, ' или ', INPUT_CONSOLE, '.');
+            IsValid := False;
+        End;
+    Until IsValid;
+    ReadChoice := Value;
+End;
+
+Function ReadArraySize(): Integer;
+Var
+    N: Integer;
+    IsCorrect: Boolean;
+Begin
+    Repeat
+        IsCorrect := True;
+        Write('Введите размер массива (', MIN_N, '..', MAX_N, '): ');
+        Try
+            ReadLn(N);
+        Except
+            WriteLn('Ошибка: требуется целое число.');
+            IsCorrect := False;
+        End;
+        If IsCorrect And ((N < MIN_N) Or (N > MAX_N)) Then
+        Begin
+            WriteLn('Ошибка: размер должен быть в диапазоне ', MIN_N, ' .. ', MAX_N, '.');
+            IsCorrect := False;
+        End;
+    Until IsCorrect;
+    ReadArraySize := N;
+End;
+
+Function ReadArrayConsole(N: Integer): TArr;
+Var
+    Arr: TArr;
+    I: Integer;
+    Value: Integer;
+    IsCorrect: Boolean;
+Begin
+    SetLength(Arr, N);
+    WriteLn('Введите элементы массива:');
+    For I := 0 To High(Arr) Do
+    Begin
+        Repeat
+            IsCorrect := True;
+            Write('A[', I + 1, '] = ');
+            Try
+                ReadLn(Value);
+            Except
+                WriteLn('Ошибка: требуется целое число.');
+                IsCorrect := False;
+            End;
+            If IsCorrect And ((Value < MIN_VALUE) Or (Value > MAX_VALUE)) Then
+            Begin
+                WriteLn('Ошибка: значение должно быть в диапазоне [', MIN_VALUE, '; ', MAX_VALUE, '].');
+                IsCorrect := False;
+            End;
+            If IsCorrect Then
+                Arr[I] := Value;
+        Until IsCorrect;
+    End;
+    ReadArrayConsole := Arr;
+End;
+
+Procedure ReadDataFromFile(Var Arr: TArr);
+Var
+    F: TextFile;
+    Path: String;
+    N, I: Integer;
+Begin
+    Path := FileValidator();
+    AssignFile(F, Path);
+    Try
+        Reset(F);
+    Except
+        Write('Ошибка: файл невозможно открыть');
+    End;
+    ReadLn(F, N);
+    SetLength(Arr, N);
+    For I := 0 To High(Arr) Do
+        Read(F, Arr[I]);
+    CloseFile(F);
+End;
+
+Function ObtainArray(Var Arr: TArr): Boolean;
+Var
+    Choice, N: Integer;
+Begin
+    Choice := ReadChoice();
+    If Choice = INPUT_CONSOLE Then
+    Begin
+        N := ReadArraySize();
+        Arr := ReadArrayConsole(N);
+    End
+    Else
+        ReadDataFromFile(Arr);
+    ObtainArray := True;
+End;
+
+Procedure ShowCurrentData(Arr: TArr);
+Var
+    I: Integer;
+Begin
+    WriteLn('Исходный массив:');
+    For I := 0 To High(Arr) Do
+        Write(Arr[I], ' ');
+    WriteLn;
+End;
+
+Procedure ReconstructSequence(Arr: TArr; Parent: TIntArr; BestIndex: Integer; Var LongestSeq: TIntArr);
+Var
+    TempSeq: TIntArr;
+    SeqLength, CurrentPos: Integer;
+Begin
+    SetLength(TempSeq, Length(Arr));
+    SeqLength := 0;
+    CurrentPos := BestIndex;
+
+    While CurrentPos <> -1 Do
+    Begin
+        TempSeq[SeqLength] := Arr[CurrentPos];
+        Inc(SeqLength);
+        CurrentPos := Parent[CurrentPos];
+    End;
+
+    SetLength(LongestSeq, SeqLength);
+    For CurrentPos := 0 To SeqLength - 1 Do
+        LongestSeq[CurrentPos] := TempSeq[SeqLength - CurrentPos - 1];
+End;
+
+Procedure FindLongestIncreasingSubsequence(Arr: TArr; IsConsole: Boolean; Var F: TextFile);
+Var
+    N, I, J, BestIndex: Integer;
+    LastIndex, LastPrevIndex: Integer;
+    LengthOfSeq, PrevIndex, LongestSeq: TIntArr;
+Begin
+    N := Length(Arr);
+    LastIndex := N - 1;
+    SetLength(LengthOfSeq, N);
+    SetLength(PrevIndex, N);
+
+    For I := 0 To LastIndex Do
+    Begin
+        LengthOfSeq[I] := 1;
+        PrevIndex[I] := -1;
+
+        LastPrevIndex := I - 1;
+        For J := 0 To LastPrevIndex Do
+            If (Arr[J] < Arr[I]) And (LengthOfSeq[J] + 1 > LengthOfSeq[I]) Then
+            Begin
+                LengthOfSeq[I] := LengthOfSeq[J] + 1;
+                PrevIndex[I] := J;
+            End;
+    End;
+
+    BestIndex := 0;
+    For I := 1 To LastIndex Do
+        If LengthOfSeq[I] > LengthOfSeq[BestIndex] Then
+            BestIndex := I;
+
+    ReconstructSequence(Arr, PrevIndex, BestIndex, LongestSeq);
+
+    If IsConsole Then
+    Begin
+        WriteLn('Самая длинная возрастающая подпоследовательность:');
+        For I := 0 To High(LongestSeq) Do
+            Write(LongestSeq[I], ' ');
+        WriteLn;
+    End
+    Else
+    Begin
+        WriteLn(F, 'Самая длинная возрастающая подпоследовательность:');
+        For I := 0 To High(LongestSeq) Do
+            Write(F, LongestSeq[I], ' ');
+        WriteLn(F);
+    End;
+End;
+
+
+Procedure ProcessTask(Var Arr: TArr);
+Var
+    Choice: Integer;
+    F: TextFile;
+    Path: String;
+Begin
+    Choice := ReadChoice();
+    If Choice = INPUT_CONSOLE Then
+        FindLongestIncreasingSubsequence(Arr, True, Output)
+    Else
+    Begin
+        Path := FileValidator();
+        AssignFile(F, Path);
+        Rewrite(F);
+        FindLongestIncreasingSubsequence(Arr, False, F);
+        CloseFile(F);
+        WriteLn('Результат успешно записан в файл.');
+    End;
+End;
+
+Var
+    Arr: TArr;
+
+Begin
+
+    WriteLn('Программа находит самую длинную возрастающую подпоследовательность в массиве.');
+    ObtainArray(Arr);
+    ShowCurrentData(Arr);
+    ProcessTask(Arr);
+
+    ReadLn;
+End.
